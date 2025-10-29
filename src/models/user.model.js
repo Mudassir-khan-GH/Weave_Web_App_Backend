@@ -33,10 +33,6 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, "Image is required"]
     },
-    accessToken: {
-        type: String,
-        default: null
-    },
     refreshToken: {
         type: String,
         default: null
