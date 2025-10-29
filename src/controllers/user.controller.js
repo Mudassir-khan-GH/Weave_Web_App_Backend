@@ -3,6 +3,13 @@ import fs from 'fs/promises'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import { compressImage } from '../utils/compress.js'
 import { hashPassword, comparePassword } from '../utils/bcrypt.js'
+import { generateAccessToken, generateRefreshToken } from '../utils/genTokens.js'
+
+
+const options= {
+    httpOnly: true,
+    secure: true
+}
 
 export const createUser = async (req, res) => {
     try {
@@ -56,4 +63,30 @@ export const createUser = async (req, res) => {
             .status(500)
             .json({ message: "Internal Server Error" })
     }
+}
+
+export const login = async (req, res) => {
+    
+    const { email, password } = req.body
+    if(email.trim() === "" || password.trim() === "") return res.status(400).json({message: "Email and password are required"})
+    
+    const user = await User.findOne({email})
+    if(!user) return res.status(400).json({message: "user not registered"})
+        
+    const result = await comparePassword(password, user.password)
+    if(!result) return res.status(400).json({message: "invalid credentials"})
+
+    const accessToken = generateAccessToken(user)
+    const refreshToken = generateRefreshToken(user)
+
+    user.refreshToken = refreshToken
+    await user.save({validateBeforeSave: false})
+
+    const loggedInUser= await User.findById(user._id).select("-refreshToken -password -updatedAt __v")
+
+    return res
+    .status(200)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json({loggedInUser})
 }
